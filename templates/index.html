@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .main-card { max-width: 600px; margin: 50px auto; border-radius: 15px; }
+        .video-preview { width: 100%; border-radius: 10px; background: #000; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card main-card shadow-lg p-4">
+        <h3 class="text-center mb-4 text-danger">YouTube Downloader</h3>
+        
+        <form method="POST">
+            <div class="input-group mb-3">
+                <input type="text" name="url" class="form-control" placeholder="Paste Video Link Here..." required>
+                <button class="btn btn-danger" type="submit">Generate Video</button>
+            </div>
+        </form>
+
+        {% if video_info %}
+        <hr>
+        <div class="result-section">
+            <h5 class="mb-3">{{ video_info.title }}</h5>
+            
+            <video controls class="video-preview">
+                <source src="{{ video_info.preview_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+
+            <form action="/download" method="POST" class="mt-4">
+                <input type="hidden" name="url" value="{{ video_info.url }}">
+                
+                <label class="form-label fw-bold">Select Quality:</label>
+                <select name="quality" class="form-select mb-3">
+                    <option value="1080p">MP4 - Full HD (1080p)</option>
+                    <option value="720p">MP4 - Medium (720p)</option>
+                    <option value="360p">MP4 - Low (360p)</option>
+                    <option value="mp3">MP3 - Audio Only</option>
+                </select>
+                
+                <button type="submit" class="btn btn-success w-100 fw-bold">Download Now</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
