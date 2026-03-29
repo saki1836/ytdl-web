@@ -38,7 +38,7 @@ def index():
                         'url': url
                     }
             except Exception as e:
-                error = "YouTube is blocking the request or invalid link. Please check logs."
+                error = "YouTube is blocking the request or invalid link."
                 print(f"Extraction Error: {e}")
                 
     return render_template('index.html', video_info=video_info, error=error)
@@ -47,28 +47,20 @@ def index():
 def download():
     url = request.form.get('url')
     
-    # এরর এড়াতে 'best' ফরম্যাট সেট করা হয়েছে
+    # আপনার দেওয়া আপডেট করা কনফিগারেশন
     ydl_opts = {
         'cookiefile': COOKIE_FILE,
         'ffmpeg_location': FFMPEG_PATH,
-        'format': 'bestvideo+bestaudio/best', 
+        'format': 'best', # ইউটিউব থেকে সরাসরি কাজ করা ফরম্যাটটি বেছে নেবে
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-        'merge_output_format': 'mp4',
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'postprocessor_args': ['-c:v', 'copy', '-c:a', 'aac']
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            
-            # এক্সটেনশন চেক করে সঠিক ফাইল পাঠানো
-            base_name = os.path.splitext(filename)[0]
-            final_file = base_name + ".mp4"
-            target = final_file if os.path.exists(final_file) else filename
-            
-            return send_file(target, as_attachment=True)
+            return send_file(filename, as_attachment=True)
     except Exception as e:
         print(f"Download Error: {e}")
         return f"Download Failed: {str(e)}"
