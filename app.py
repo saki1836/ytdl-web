@@ -4,15 +4,17 @@ import yt_dlp
 
 app = Flask(__name__)
 
+# ডাউলোড ফোল্ডার তৈরি
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
-# কুকি ফাইলের নাম (নিশ্চিত করুন এই ফাইলটি আপনার মেইন ডিরেক্টরিতে আছে)
-COOKIE_FILE = 'youtube_cookies.txt'
+# কুকি ফাইলের সঠিক পাথ (ডিরেক্টরি সহ)
+base_path = os.path.dirname(os.path.abspath(__file__))
+COOKIE_FILE = os.path.join(base_path, 'youtube_cookies.txt')
 
-# Render-এ FFmpeg পাথ সেটআপ
-FFMPEG_PATH = '/usr/bin/ffmpeg' if os.path.exists('/usr/bin/ffmpeg') else 'ffmpeg'
+# FFmpeg পাথ সেটআপ (রেন্ডার এনভায়রনমেন্ট অনুযায়ী)
+FFMPEG_PATH = os.environ.get('FFMPEG_BINARY', '/usr/bin/ffmpeg')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -26,7 +28,9 @@ def index():
                     'ffmpeg_location': FFMPEG_PATH,
                     'quiet': True,
                     'no_warnings': True,
-                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    # বট ডিটেকশন এড়াতে অতিরিক্ত হেডার
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                    'referer': 'https://www.google.com/',
                 }
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
@@ -48,10 +52,12 @@ def download():
     ydl_opts = {
         'cookiefile': COOKIE_FILE,
         'ffmpeg_location': FFMPEG_PATH,
-        'format': 'bestvideo[height<=720]+bestaudio/best' if quality == '720p' else 'best',
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+        # কুয়ালিটি সিলেকশন
+        'format': 'bestvideo[height<=720]+bestaudio/best' if quality == '720p' else 'best',
         'merge_output_format': 'mp4',
         'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     }
 
     try:
@@ -59,16 +65,17 @@ def download():
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            # এক্সটেনশন চেক (MP4 নিশ্চিত করা)
+            # ফাইল এক্সটেনশন ঠিক করা
             base_name = os.path.splitext(filename)[0]
             final_file = base_name + ".mp4"
             
-            target_file = final_file if os.path.exists(final_file) else filename
-            return send_file(target_file, as_attachment=True)
+            if os.path.exists(final_file):
+                return send_file(final_file, as_attachment=True)
+            return send_file(filename, as_attachment=True)
             
     except Exception as e:
         print(f"Download Error: {e}")
-        return f"Download Error: {str(e)}"
+        return f"Error: {str(e)}"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
