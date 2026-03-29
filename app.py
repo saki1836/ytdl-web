@@ -23,7 +23,7 @@ def index():
         url = request.form.get('url')
         if url:
             try:
-                # এক্সট্রাকশন অপশন
+                # ভিডিওর তথ্য বের করার কনফিগারেশন
                 ydl_opts = {
                     'cookiefile': COOKIE_FILE,
                     'quiet': True,
@@ -47,11 +47,11 @@ def index():
 def download():
     url = request.form.get('url')
     
-    # আপনার দেওয়া আপডেট করা কনফিগারেশন
+    # 'Format not available' এরর এড়াতে 'best' কনফিগারেশন
     ydl_opts = {
         'cookiefile': COOKIE_FILE,
         'ffmpeg_location': FFMPEG_PATH,
-        'format': 'best', # ইউটিউব থেকে সরাসরি কাজ করা ফরম্যাটটি বেছে নেবে
+        'format': 'best', # এটি সব ধরনের ভিডিওর জন্য সবচেয়ে সামঞ্জস্যপূর্ণ ফরম্যাট বেছে নেয়
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     }
@@ -60,13 +60,14 @@ def download():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
+            # সরাসরি ডাউনলোড করা ফাইলটি পাঠানো হচ্ছে
             return send_file(filename, as_attachment=True)
     except Exception as e:
         print(f"Download Error: {e}")
         return f"Download Failed: {str(e)}"
 
 if __name__ == '__main__':
-    # রেন্ডার পোর্টের জন্য
+    # রেন্ডার পোর্টের জন্য এনভায়রনমেন্ট সেটিংস
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
 
