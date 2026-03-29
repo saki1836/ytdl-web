@@ -4,10 +4,14 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# Download folder toiri kora
+# ডাউলোড ফোল্ডার তৈরি
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+
+# Render-এর জন্য FFmpeg লোকেশন ডিটেক্ট করা
+# যদি লিনাক্স সার্ভারে থাকে তবে /usr/bin/ffmpeg নিবে, নাহলে লোকাল 'ffmpeg' নিবে
+FFMPEG_PATH = '/usr/bin/ffmpeg' if os.path.exists('/usr/bin/ffmpeg') else 'ffmpeg'
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -18,7 +22,7 @@ def index():
             ydl_opts = {}
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                # Video preview link check (direct mp4 link thakle play hobe)
+                # Video preview link check
                 video_url = next((f['url'] for f in info['formats'] if f.get('vcodec') != 'none' and f.get('acodec') != 'none'), None)
                 
                 video_info = {
@@ -37,43 +41,48 @@ def download_video():
     url = request.form.get('url')
     quality = request.form.get('quality')
     
-    # Format selection logic
+    # কমন অপশন যা সব ফরম্যাটেই লাগবে
+    base_opts = {
+        'ffmpeg_location': FFMPEG_PATH,  # FFmpeg লোকেশন এখানে অ্যাড করা হয়েছে
+        'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+    }
+
+    # ফরম্যাট সিলেকশন লজিক
     if quality == "1080p":
-        ydl_opts = {'format': 'bestvideo[height<=1080]+bestaudio/best', 'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s', 'merge_output_format': 'mp4'}
+        ydl_opts = {**base_opts, 'format': 'bestvideo[height<=1080]+bestaudio/best', 'merge_output_format': 'mp4'}
     elif quality == "720p":
-        ydl_opts = {'format': 'bestvideo[height<=720]+bestaudio/best', 'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s', 'merge_output_format': 'mp4'}
+        ydl_opts = {**base_opts, 'format': 'bestvideo[height<=720]+bestaudio/best', 'merge_output_format': 'mp4'}
     elif quality == "360p":
-        ydl_opts = {'format': 'best[height<=360]', 'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s'}
+        ydl_opts = {**base_opts, 'format': 'bestvideo[height<=360]+bestaudio/best', 'merge_output_format': 'mp4'}
     else: # MP3
         ydl_opts = {
+            **base_opts,
             'format': 'bestaudio/best',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
         }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        file_path = ydl.prepare_filename(info)
-        # MP3 hole extension change hote pare tai safe check
-        if quality == "mp3":
-            file_path = os.path.splitext(file_path)[0] + ".mp3"
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            file_path = ydl.prepare_filename(info)
+            
+            # এক্সটেনশন চেক (MP3 বা MP4 এর জন্য)
+            if quality == "mp3":
+                file_path = os.path.splitext(file_path)[0] + ".mp3"
+            elif "merge_output_format" in ydl_opts:
+                file_path = os.path.splitext(file_path)[0] + ".mp4"
 
-    @after_this_request
-    def remove_file(response):
-        try:
-            # Download hoye gele file delete kore dibe server clean rakhte
-            # os.remove(file_path) 
-            pass
-        except Exception as error:
-            print(f"Error removing file: {error}")
-        return response
-
-    return send_file(file_path, as_attachment=True)
+        return send_file(file_path, as_attachment=True)
+        
+    except Exception as error:
+        return f"Error downloading video: {error}"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Render-এর ডাইনামিক পোর্ট সাপোর্ট করার জন্য
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
